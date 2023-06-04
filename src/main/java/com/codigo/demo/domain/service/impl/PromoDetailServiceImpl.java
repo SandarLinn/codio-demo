@@ -33,8 +33,8 @@ public class PromoDetailServiceImpl implements PromoDetailService {
 	}
 
 	@Override
-	public ServiceResult<Long> save(PromoDetailReqDTO dto) {
-		ServiceResult<Long> result = new ServiceResult<>();
+	public ServiceResult<PromoDetail> save(PromoDetailReqDTO dto) {
+		ServiceResult<PromoDetail> result = new ServiceResult<>();
 		try {
 			PromoDetail promoCode = new PromoDetail();
 			promoCode = this.mapper.convertDTOToEntity(dto, PromoDetail.class);
@@ -44,7 +44,7 @@ public class PromoDetailServiceImpl implements PromoDetailService {
 			promoCode = this.promoDetailRepository.save(promoCode);
 			logger.info("Promo code created response : {}", JsonUtils.toJSON(promoCode));
 
-			result.success(promoCode.getId());
+			result.success(promoCode);
 		} catch (Exception e) {
 			logger.error("Error occur in create promo code : {}", e.getMessage());
 			result.fail(e, e.getMessage());

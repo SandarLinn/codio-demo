@@ -1,16 +1,23 @@
 package com.codigo.demo.domain.service.impl;
 
+import java.util.Date;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.codigo.demo.common.ServiceResult;
 import com.codigo.demo.common.status.EVoucherStatus;
+import com.codigo.demo.common.status.PromoCodeStatus;
 import com.codigo.demo.domain.dto.EVoucherIssueReqDTO;
+import com.codigo.demo.domain.dto.PromoDetailReqDTO;
+import com.codigo.demo.domain.dto.PurchaseHistoryReqDTO;
 import com.codigo.demo.domain.entity.EVoucherIssue;
 import com.codigo.demo.domain.repository.EVoucherIssueRepository;
 import com.codigo.demo.domain.repository.EVoucherRepository;
 import com.codigo.demo.domain.service.EVoucherIssueService;
+import com.codigo.demo.domain.service.PromoDetailService;
+import com.codigo.demo.domain.service.PurchaseHistoryService;
 import com.codigo.demo.exception.ApiException;
 import com.codigo.demo.modelmapper.GenericModelMapper;
 import com.codigo.demo.utils.JsonUtils;
@@ -22,15 +29,22 @@ public class EVoucherIssueServiceImpl implements EVoucherIssueService {
 
 	private final EVoucherRepository eVoucherRepository;
 
+	private final PromoDetailService promoDetailService;
+
+	private final PurchaseHistoryService purchaseHistoryService;
+
 	private Logger logger = LoggerFactory.getLogger(EVoucherIssueServiceImpl.class);
 
 	private final GenericModelMapper mapper;
 
 	public EVoucherIssueServiceImpl(final GenericModelMapper mapper,
-			final EVoucherIssueRepository eVoucherIssueRepository, final EVoucherRepository eVoucherRepository) {
+			final EVoucherIssueRepository eVoucherIssueRepository, final EVoucherRepository eVoucherRepository,
+			final PromoDetailService promoDetailService, final PurchaseHistoryService purchaseHistoryService) {
 		this.eVoucherIssueRepository = eVoucherIssueRepository;
 		this.mapper = mapper;
 		this.eVoucherRepository = eVoucherRepository;
+		this.promoDetailService = promoDetailService;
+		this.purchaseHistoryService = purchaseHistoryService;
 	}
 
 	@Override
@@ -71,6 +85,72 @@ public class EVoucherIssueServiceImpl implements EVoucherIssueService {
 			result.fail(e, e.getMessage());
 		}
 		return result;
+	}
+
+	@Override
+	public ServiceResult<Boolean> paidWithEvoucher(Long id, Double amount) {
+		ServiceResult<Boolean> result = new ServiceResult<>();
+		try {
+			var eVoucherIssue = this.eVoucherIssueRepository.findById(id)
+					.orElseThrow(() -> new ApiException("Fail to retrieve e-voucher issue ", "400",
+							"No e-voucher issue found for id " + id));
+			if (!EVoucherStatus.ACTIVE.equals(eVoucherIssue.getStatus())
+					|| (eVoucherIssue.getPurchaseQuantity() - eVoucherIssue.getUsedQuantity() <= 0)) {
+				throw new ApiException("Fail to paid with e-voucher ", "400", "Invalid e-voucher!");
+			}
+
+			if (eVoucherIssue.getAmount() < amount) {
+				throw new ApiException("Fail to paid with e-voucher ", "400", "Invalid e-voucher amount!");
+			}
+
+			// is used all e-voucher set status to USED
+			eVoucherIssue.setUsedQuantity(eVoucherIssue.getUsedQuantity() + 1);
+			if (eVoucherIssue.getUsedQuantity() == eVoucherIssue.getPurchaseQuantity()) {
+				eVoucherIssue.setStatus(EVoucherStatus.USED);
+			}
+			this.eVoucherIssueRepository.save(eVoucherIssue);
+
+			// create promo code
+			var promoDetail = getPormoDetailDTO(eVoucherIssue);
+			var promoDetailSR = this.promoDetailService.save(promoDetail);
+
+			// create purchase history 
+			PurchaseHistoryReqDTO phDTO = new PurchaseHistoryReqDTO();
+			phDTO.setEVoucherIssueId(eVoucherIssue.getId());
+			phDTO.setPurchaseAmount(amount);
+			phDTO.setPromoCode(promoDetailSR.getResult().getPromoCode());
+			phDTO.setPurchaseAt(new Date());
+			this.purchaseHistoryService.save(phDTO);
+			result.success(Boolean.TRUE);
+		} catch (Exception e) {
+			logger.error("Error occur in paid with e-voucher : {}", e.getMessage());
+			result.fail(e, e.getMessage());
+		}
+		return result;
+	}
+
+	public PromoDetailReqDTO getPormoDetailDTO(EVoucherIssue eVoucherIssue) {
+		PromoDetailReqDTO dto = new PromoDetailReqDTO();
+		dto.setAmount(getPormoAmount(eVoucherIssue.getAmount()));
+		dto.setExpiryDate(eVoucherIssue.getEVoucher().getExpiryDate());
+		dto.setStatus(PromoCodeStatus.ACTIVE);
+		dto.setUserId(eVoucherIssue.getUserId());
+		return dto;
+	}
+
+	/*
+	 * eg of to get promo amount
+	 */
+	private Double getPormoAmount(Double amount) {
+		Double promoAmount = 0.0;
+		if (amount > 0 && amount <= 10) {
+			promoAmount = 2.0;
+		} else if (amount > 10 && amount < 20) {
+			promoAmount = 4.0;
+		} else {
+			promoAmount = 4.0;
+		}
+		return promoAmount;
 	}
 
 }

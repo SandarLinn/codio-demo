@@ -7,4 +7,6 @@ public interface EVoucherIssueService {
 
 	public ServiceResult<Long> save(EVoucherIssueReqDTO dto);
 
+	public ServiceResult<Boolean> paidWithEvoucher(Long id, Double amount);
+
 }

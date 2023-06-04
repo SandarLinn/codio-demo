@@ -32,14 +32,15 @@ public class EVoucherIssue {
 	@Column(name = "ID")
 	private Long id;
 
-	@Column(name = "USER_ID", nullable = false)
+	@Column(name = "USER_ID")
 	private Long userId;
 
-	@ManyToOne
+	@ManyToOne(fetch = FetchType.EAGER)
+	@JsonIgnore
 	@JoinColumn(name = "USER_ID", referencedColumnName = "ID", insertable = false, updatable = false)
 	private UserMaster user;
 
-	@Column(name = "E_VOUCHER_ID", nullable = false)
+	@Column(name = "E_VOUCHER_ID")
 	private Long eVoucherId;
 
 	@ManyToOne(fetch = FetchType.EAGER)

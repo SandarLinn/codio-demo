@@ -4,6 +4,7 @@ import java.util.Date;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -25,12 +26,12 @@ public class PurchaseHistory {
 	@Column(name = "ID")
 	private Long id;
 
-	@Column(name = "E_VOUCHER_PURCHASE_ID", nullable = false)
+	@Column(name = "E_VOUCHER_ISSUE_ID", nullable = false)
 	private Long eVoucherPurchaseId;
 
-	@ManyToOne
-	@JoinColumn(name = "E_VOUCHER_PURCHASE_ID", referencedColumnName = "ID", insertable = false, updatable = false)
-	private EVoucherIssue eVoucherPurchase;
+	@ManyToOne(fetch = FetchType.EAGER)
+	@JoinColumn(name = "E_VOUCHER_ISSUE_ID", referencedColumnName = "ID", insertable = false, updatable = false)
+	private EVoucherIssue eVoucherIssue;
 
 	@Column(name = "PURCHASE_AMOUNT", nullable = false)
 	private Double purchaseAmount;
@@ -41,5 +42,8 @@ public class PurchaseHistory {
 
 	@Column(name = "DESCRIPTION")
 	private String description;
+
+	@Column(name = "PROMO_CODE")
+	private String promoCode;
 
 }
